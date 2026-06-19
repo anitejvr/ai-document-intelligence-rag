@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>AI Document Intelligence</title>
+
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+
+    <h1>AI Document Intelligence Platform</h1>
+
+    <h2>Upload Document</h2>
+
+    <form method="POST" enctype="multipart/form-data">
+
+        <input type="hidden"
+            name="action"
+            value="upload">
+
+        <input type="file"
+            name="pdf_file"
+            required>
+
+        <br><br>
+
+        <button type="submit">
+            Upload & Analyze
+        </button>
+
+    </form>
+
+{% if document_insights %}
+
+    <hr>
+
+    <h2>Document Analysis</h2>
+
+    <div class="card">
+        <div style="white-space: pre-wrap;">
+            {{ document_insights }}
+        </div>
+    </div>
+
+    <hr>
+
+    <h2>Ask Questions</h2>
+
+    <form method="POST">
+
+        <input type="hidden"
+            name="action"
+            value="question">
+
+        <textarea
+            name="question"
+            rows="4"
+            placeholder="Ask a question..."
+        ></textarea>
+
+        <br><br>
+
+        <button type="submit">
+            Ask Question
+        </button>
+
+    </form>
+
+{% endif %}
+
+{% if answer %}
+
+    <hr>
+
+    <h2>Answer</h2>
+
+    <div class="card">
+        <div style="white-space: pre-wrap;">
+            {{ answer }}
+        </div>
+    </div>
+
+{% endif %}
+
+
+{% if uploaded %}
+<p>✅ Document loaded successfully</p>
+{% endif %}
+
+</body>
+
+</html>
+
