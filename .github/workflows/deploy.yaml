@@ -57,7 +57,7 @@ jobs:
         id: render-task-def
         uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
-          task-definition: task-definition.json
+          task-definition: updated-task-definition.json
           container-name: ${{ env.CONTAINER_NAME }}
           image: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ steps.image.outputs.tag }}
 
@@ -68,3 +68,32 @@ jobs:
           service: ${{ env.ECS_SERVICE }}
           cluster: ${{ env.ECS_CLUSTER }}
           wait-for-service-stability: true
+
+      - name: Add task role and S3 bucket configuration
+        shell: bash
+        run: |
+          jq \
+            --arg taskRoleArn "arn:aws:iam::207791567970:role/ai-document-intelligence-rag-task-role" \
+            --arg bucketName "ai-document-intelligence-rag-documents-207791567970" \
+            '
+            .taskRoleArn = $taskRoleArn
+            |
+            .containerDefinitions[0].environment =
+              (
+                (.containerDefinitions[0].environment // [])
+                | map(select(.name != "S3_BUCKET_NAME"))
+                + [{"name": "S3_BUCKET_NAME", "value": $bucketName}]
+              )
+            |
+            del(
+              .taskDefinitionArn,
+              .revision,
+              .status,
+              .requiresAttributes,
+              .compatibilities,
+              .registeredAt,
+              .registeredBy
+            )
+            ' task-definition.json > updated-task-definition.json     
+
+

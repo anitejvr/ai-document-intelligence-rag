@@ -200,3 +200,17 @@ if __name__ == "__main__":
         debug=False,
         use_reloader=False
     )
+
+from services.s3_service import S3UploadError, upload_document
+
+try:
+    s3_object_key = upload_document(pdf_file)
+except S3UploadError as error:
+    return render_template(
+        "index.html",
+        error=str(error),
+    )
+
+pdf_file.stream.seek(0)
+pdf_text = extract_pdf_text(pdf_file)
+
