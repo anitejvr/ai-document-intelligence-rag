@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, session
 from openai import OpenAI
 from dotenv import load_dotenv
+from services.s3_service import S3UploadError, upload_document
 import os
 import PyPDF2
 import faiss
@@ -156,21 +157,32 @@ def index():
         if action == "upload":
             pdf_file = request.files.get("pdf_file")
 
-            if not pdf_file:
+            if not pdf_file or not pdf_file.filename:
                 error = "Please upload a PDF."
+
+            elif not pdf_file.filename.lower().endswith(".pdf"):
+                error = "Only PDF files are supported."
+
             else:
-                pdf_text = extract_pdf_text(pdf_file)
-
-                if not pdf_text.strip():
-                    error = "Could not extract readable text from this PDF."
+                try:
+                    s3_object_key = upload_document(pdf_file)
+                except S3UploadError as upload_error:
+                    error = str(upload_error)
                 else:
-                    session["pdf_loaded"] = True
+                    pdf_file.stream.seek(0)
+                    pdf_text = extract_pdf_text(pdf_file)
 
-                    document_chunks = chunk_text(pdf_text)
-                    vector_index = build_vector_store(document_chunks)
+                    if not pdf_text.strip():
+                        error = "Could not extract readable text from this PDF."
+                    else:
+                        session["pdf_loaded"] = True
+                        session["s3_object_key"] = s3_object_key
 
-                    document_insights = generate_document_insights(pdf_text)
-                    session["document_insights"] = document_insights
+                        document_chunks = chunk_text(pdf_text)
+                        vector_index = build_vector_store(document_chunks)
+
+                        document_insights = generate_document_insights(pdf_text)
+                        session["document_insights"] = document_insights
 
         elif action == "question":
             question = request.form.get("question", "").strip()
@@ -201,16 +213,5 @@ if __name__ == "__main__":
         use_reloader=False
     )
 
-from services.s3_service import S3UploadError, upload_document
 
-try:
-    s3_object_key = upload_document(pdf_file)
-except S3UploadError as error:
-    return render_template(
-        "index.html",
-        error=str(error),
-    )
-
-pdf_file.stream.seek(0)
-pdf_text = extract_pdf_text(pdf_file)
 

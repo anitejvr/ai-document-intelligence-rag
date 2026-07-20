@@ -1,3 +1,4 @@
+import io
 import os
 import uuid
 
@@ -30,24 +31,31 @@ def upload_document(file: FileStorage) -> str:
 
     try:
         file.stream.seek(0)
+        file_bytes = file.stream.read()
+
+        if not file_bytes:
+            raise S3UploadError("The uploaded document is empty.")
+
+        upload_stream = io.BytesIO(file_bytes)
 
         s3_client.upload_fileobj(
-            file.stream,
+            upload_stream,
             bucket_name,
             object_key,
             ExtraArgs={
-                "ContentType": file.mimetype or "application/octet-stream"
+                "ContentType": file.mimetype or "application/pdf"
             },
         )
 
+        # Restore Flask's original file stream for PyPDF2.
         file.stream.seek(0)
 
-    except (BotoCoreError, ClientError, OSError) as error:
+    except S3UploadError:
+        raise
+
+    except (BotoCoreError, ClientError, OSError, ValueError) as error:
         raise S3UploadError(
             f"Unable to upload the document to S3: {error}"
         ) from error
 
     return object_key
-
-
-
